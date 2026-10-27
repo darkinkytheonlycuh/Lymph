@@ -1,0 +1,11 @@
+{
+  "name": "lymph-menu-site",
+  "version": "1.0.0",
+  "description": "Lymph - Gorilla Tag mod menu, injector, executor. Update server.",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {}
+}
+

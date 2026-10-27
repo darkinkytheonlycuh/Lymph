@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyTitle>Lymph</AssemblyTitle>
+    <Product>Lymph</Product>
+    <Company>Lymph Software</Company>
+    <Copyright>Copyright (C) 2026 Lymph Software</Copyright>
+    <Description>Lymph Modding Suite</Description>
+  </PropertyGroup>
+</Project>
+
