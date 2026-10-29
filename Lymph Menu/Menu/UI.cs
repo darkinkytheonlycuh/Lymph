@@ -50,12 +50,12 @@ namespace Lymph.Menu
 
         private const float backgroundBaseAlpha = 1f;
         private const float panelBaseAlpha = 1f;
-        private Color background = new Color(0.02f, 0.02f, 0.02f, backgroundBaseAlpha);
-        private Color panel = new Color(0.06f, 0.06f, 0.06f, panelBaseAlpha);
-        private Color border = new Color32(60, 60, 60, 255);
-        private Color accent = new Color32(220, 220, 220, 255);
-        private Color bright = new Color32(235, 237, 245, 255);
-        private Color muted = new Color32(144, 151, 169, 255);
+        private Color background = new Color(0f, 0f, 0f, backgroundBaseAlpha);
+        private Color panel = new Color(0.08f, 0.08f, 0.08f, panelBaseAlpha);
+        private Color border = new Color32(40, 40, 40, 255);
+        private Color accent = new Color32(240, 240, 240, 255);
+        private Color bright = new Color32(255, 255, 255, 255);
+        private Color muted = new Color32(120, 120, 120, 255);
         private static readonly Regex tags = new Regex("<[^>]*>", RegexOptions.Compiled);
 
         internal Color BackgroundColor => background;
@@ -170,6 +170,12 @@ namespace Lymph.Menu
         private bool inputSubmit;
         private string submitInput;
         private bool inputClicked;
+
+        // Right-click context menu state
+        private ButtonInfo contextMenuButton;
+        private Entry contextMenuEntry;
+        private Rect contextMenuRect;
+        private bool contextMenuOpen;
 
         private float gridShownAt = -10f;
         private float gridFade;
@@ -662,6 +668,8 @@ namespace Lymph.Menu
                 if (Event.current.type == EventType.Repaint) snapAnimations = false;
                 inputSubmit = false;
                 submitInput = null;
+                
+                if (contextMenuOpen) DrawContextMenu();
             }
             finally
             {
@@ -1108,7 +1116,152 @@ namespace Lymph.Menu
             bool rightClick = Pressed(hit, 1);
             if (leftClick) { Activate(button, true); current.Use(); }
             else if (rightClick && button.incremental) { Activate(button, false); current.Use(); }
+            else if (rightClick)
+            {
+                contextMenuButton = button;
+                contextMenuEntry = entry;
+                contextMenuRect = rect;
+                contextMenuRect.x = GuiPoint.x;
+                contextMenuRect.y = GuiPoint.y;
+                contextMenuRect.width = 180f;
+                contextMenuRect.height = 0f;
+                contextMenuOpen = true;
+                current.Use();
+            }
             GUI.enabled = enabled;
+        }
+
+        private void DrawContextMenu()
+        {
+            if (!contextMenuOpen || contextMenuButton == null) return;
+
+            float scale = ScreenScale();
+            float width = ViewWidth / scale;
+            float height = ViewHeight / scale;
+
+            Rect menuRect = new Rect(
+                Mathf.Clamp(contextMenuRect.x, 4f, width - 200f),
+                Mathf.Clamp(contextMenuRect.y, 4f, height - 120f),
+                180f, 0f
+            );
+
+            List<GUIContent> items = new List<GUIContent>();
+            ButtonInfo b = contextMenuButton;
+
+            // Favorite toggle
+            bool starred = favorites.Contains(b.buttonText);
+            items.Add(new GUIContent(starred ? "Remove from Favorites" : "Add to Favorites", "star"));
+
+            // Keybind
+            items.Add(new GUIContent("Bind to Key", "Bind this mod to a key"));
+
+            // Info
+            items.Add(new GUIContent("Info", "Show mod information"));
+
+            // Reset/Disable
+            if (b.enabled)
+                items.Add(new GUIContent("Disable", "Disable this mod"));
+            else
+                items.Add(new GUIContent("Enable", "Enable this mod"));
+
+            float rowHeight = 22f;
+            menuRect.height = items.Count * rowHeight + 8f;
+
+            Box(menuRect, Alpha(background, options.uiOpacity), 6);
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                Rect rowRect = new Rect(menuRect.x + 4, menuRect.y + 4 + i * rowHeight, menuRect.width - 8, rowHeight - 2);
+                bool rowHover = pointerInside && rowRect.Contains(GuiPoint);
+                Box(rowRect, Alpha(rowHover ? accent : panel, options.uiOpacity), 2);
+                Label(new Rect(rowRect.x + 8, rowRect.y, rowRect.width - 16, rowRect.height), items[i].text, smallStyle, rowHover ? Color.white : muted);
+            }
+
+            // Handle clicks
+            Event current = InputEvent;
+            if (current.type == EventType.MouseDown && current.button == 0)
+            {
+                for (int i = 0; i < items.Count; i++)
+                {
+                    Rect rowRect = new Rect(menuRect.x + 4, menuRect.y + 4 + i * rowHeight, menuRect.width - 8, rowHeight - 2);
+                    if (rowRect.Contains(GuiPoint))
+                    {
+                        HandleContextMenuClick(i, contextMenuButton);
+                        contextMenuOpen = false;
+                        contextMenuButton = null;
+                        current.Use();
+                        break;
+                    }
+                }
+                if (!menuRect.Contains(GuiPoint))
+                {
+                    contextMenuOpen = false;
+                    contextMenuButton = null;
+                    current.Use();
+                }
+            }
+        }
+
+        private void HandleContextMenuClick(int index, ButtonInfo button)
+        {
+            switch (index)
+            {
+                case 0: // Favorite toggle
+                    {
+                        if (favorites.Contains(button.buttonText)) favorites.Remove(button.buttonText);
+                        else favorites.Add(button.buttonText);
+                        Preferences.Save();
+                        NotificationManager.SendNotification(
+                            favorites.Contains(button.buttonText)
+                                ? "<color=grey>[</color><color=yellow>FAVORITES</color><color=grey>]</color> Added to favorites."
+                                : "<color=grey>[</color><color=yellow>FAVORITES</color><color=grey>]</color> Removed from favorites."
+                        );
+                        break;
+                    }
+                case 1: // Bind to key
+                    {
+                        if (!IsBinding)
+                        {
+                            BindInput = "";
+                            IsBinding = true;
+                            NotificationManager.SendNotification("<color=grey>[</color><color=white>BINDS</color><color=grey>]</color> Press a key to bind " + button.buttonText);
+                        }
+                        break;
+                    }
+                case 2: // Info
+                    {
+                        Entry e = contextMenuEntry;
+                        string info = $"<b>{(e != null ? e.title : button.buttonText)}</b>\n";
+                        info += $"ID: {button.buttonText}\n";
+                        info += $"Enabled: {button.enabled}\n";
+                        info += $"Detected: {button.detected}\n";
+                        info += $"Incremental: {button.incremental}\n";
+                        if (!string.IsNullOrEmpty(button.toolTip))
+                            info += $"\n{button.toolTip}";
+                        Prompt(info, null, null, "OK", null);
+                        break;
+                    }
+                case 3: // Enable/Disable toggle
+                    {
+                        button.enabled = !button.enabled;
+                        if (button.enabled)
+                        {
+                            if (button.enableMethod != null)
+                                try { button.enableMethod.Invoke(); }
+                                catch (Exception exc) { LogManager.LogError($"Error enabling {button.buttonText}: {exc.Message}"); }
+                            NotificationManager.SendNotification($"<color=grey>[</color><color=green>ENABLE</color><color=grey>]</color> {button.toolTip}");
+                        }
+                        else
+                        {
+                            if (button.disableMethod != null)
+                                try { button.disableMethod.Invoke(); }
+                                catch (Exception exc) { LogManager.LogError($"Error disabling {button.buttonText}: {exc.Message}"); }
+                            NotificationManager.SendNotification($"<color=grey>[</color><color=red>DISABLE</color><color=grey>]</color> {button.toolTip}");
+                        }
+                        Preferences.SaveButton(button);
+                        break;
+                    }
+            }
         }
 
         private void DrawLayoutBody(Panel deck, float w, float h)

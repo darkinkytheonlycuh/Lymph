@@ -63,7 +63,8 @@ namespace Lymph
                     }
                 });
 
-                Bootstrapper.Initialize();\n                try { Lymph.Utilities.UpdateChecker.CheckForUpdates(); } catch { }
+                Bootstrapper.Initialize();
+                try { Lymph.Utilities.UpdateChecker.CheckForUpdates(); } catch { }
             }
 
             private void OnDestroy() =>

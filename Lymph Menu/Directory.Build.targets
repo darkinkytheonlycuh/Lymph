@@ -7,14 +7,14 @@
   <!-- Update Build Timestamp -->
   <Target Name="UpdateBuildTimestamp" BeforeTargets="BeforeBuild" Condition="'$(IsMainProject)' == 'true'">
     <PropertyGroup>
-      <OriginalFileContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\PluginInfo.cs'))</OriginalFileContent>
+      <OriginalFileContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\Core\PluginInfo.cs'))</OriginalFileContent>
       <Pattern>public const string BuildTimestamp = ".*?";</Pattern>
       <Replacement>public const string BuildTimestamp = "$(BuildTimestamp)";</Replacement>
       <UpdatedFileContent>$([System.Text.RegularExpressions.Regex]::Replace($(OriginalFileContent), $(Pattern), $(Replacement)))</UpdatedFileContent>
     </PropertyGroup>
 
     <WriteLinesToFile
-        File="PluginInfo.cs"
+        File="Core\PluginInfo.cs"
         Lines="$(UpdatedFileContent)"
         Overwrite="true"
         Encoding="UTF-8"
